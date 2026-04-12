@@ -31,23 +31,13 @@ interface ChatHistory {
 }
 
 function App() {
-  const [apiKey, setApiKey] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>('1')
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
 
-  const [documents, setDocuments] = useState<DocumentFile[]>([
-    { id: '1', name: 'Machine_Learning_Notes.pdf', size: '2.4 MB' },
-    { id: '2', name: 'Chapter_5_Summary.pdf', size: '1.1 MB' },
-    { id: '3', name: 'Research_Paper.pdf', size: '4.7 MB' },
-  ])
-
-  const [chatHistory] = useState<ChatHistory[]>([
-    { id: '1', title: 'Biology Chapter Summary', date: 'Today' },
-    { id: '2', title: 'Physics Practice Questions', date: 'Yesterday' },
-    { id: '3', title: 'Math Flashcards', date: 'Mar 15' },
-  ])
+  const [documents, setDocuments] = useState<DocumentFile[]>([])
+  const [chatHistory] = useState<ChatHistory[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -59,12 +49,12 @@ function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  /* ---------------- FILE UPLOAD ---------------- */
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ---------------- FILE UPLOAD (FIXED) ---------------- */
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
 
-    Array.from(files).forEach((file) => {
+    for (const file of Array.from(files)) {
       const fileId = crypto.randomUUID()
 
       const newFile: DocumentFile = {
@@ -77,29 +67,31 @@ function App() {
 
       setDocuments((prev) => [...prev, newFile])
 
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += 10
+      try {
+        const formData = new FormData()
+        formData.append("pdf", file)
 
-        if (progress >= 100) {
-          clearInterval(interval)
+        const res = await fetch("http://localhost:5000/upload", {
+          method: "POST",
+          body: formData,
+        })
 
-          setDocuments((prev) =>
-            prev.map((f) =>
-              f.id === fileId
-                ? { ...f, progress: 100, isUploading: false }
-                : f
-            )
+        const data = await res.json()
+        console.log("Upload success:", data)
+
+        // mark as uploaded
+        setDocuments((prev) =>
+          prev.map((f) =>
+            f.id === fileId
+              ? { ...f, progress: 100, isUploading: false }
+              : f
           )
-        } else {
-          setDocuments((prev) =>
-            prev.map((f) =>
-              f.id === fileId ? { ...f, progress } : f
-            )
-          )
-        }
-      }, 150)
-    })
+        )
+
+      } catch (err) {
+        console.error("Upload failed:", err)
+      }
+    }
 
     e.target.value = ''
   }
@@ -116,7 +108,7 @@ function App() {
   const handleNewChat = () => setMessages([])
   const handleUploadClick = () => fileInputRef.current?.click()
 
-  /* ---------------- 🚀 FIXED SEND MESSAGE ---------------- */
+  /* ---------------- ASK QUESTION ---------------- */
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -148,6 +140,7 @@ function App() {
       }
 
       setMessages((prev) => [...prev, assistantMessage])
+
     } catch (err) {
       console.error('Error calling backend:', err)
     } finally {
@@ -169,8 +162,6 @@ function App() {
       {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'block' : 'hidden'} lg:block`}>
         <Sidebar
-          apiKey={apiKey}
-          setApiKey={setApiKey}
           documents={documents}
           selectedDocumentId={selectedDocumentId}
           onSelectDocument={handleSelectDocument}
