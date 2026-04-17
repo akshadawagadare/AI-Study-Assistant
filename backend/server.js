@@ -3,33 +3,61 @@ const cors = require("cors");
 
 const app = express();
 
-// ✅ Import routes
-const chatRoute = require("./routes/chat");
-const uploadRoute = require("./routes/upload");
+// =====================
+// ✅ CORS FIX (IMPORTANT)
+// =====================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://ai-study-assistant-theta-one.vercel.app"
+];
 
-// ✅ CORS (allow only your frontend)
 app.use(cors({
-  origin: "https://ai-study-assistant-theta-one.vercel.app",
-  methods: ["GET", "POST"],
+  origin: function (origin, callback) {
+    // allow tools like Postman (no origin)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log("❌ Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 
-// ✅ Body parsers
+// =====================
+// ✅ BODY PARSERS
+// =====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Test route
+// =====================
+// ✅ IMPORT ROUTES
+// =====================
+const chatRoute = require("./routes/chat");
+const uploadRoute = require("./routes/upload");
+
+// =====================
+// ✅ TEST ROUTE
+// =====================
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
 
-// ✅ Routes
+// =====================
+// ✅ API ROUTES
+// =====================
 app.use("/chat", chatRoute);
 app.use("/upload", uploadRoute);
 
-// ✅ Global error handler
+// =====================
+// ❌ GLOBAL ERROR HANDLER
+// =====================
 app.use((err, req, res, next) => {
-  console.error("🔥 GLOBAL ERROR:", err);
+  console.error("🔥 ERROR:", err.message);
 
   res.status(500).json({
     error: "Something went wrong",
@@ -37,7 +65,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ PORT fix for Render
+// =====================
+// 🚀 SERVER START
+// =====================
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
