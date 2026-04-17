@@ -11,7 +11,7 @@ function ChatInput({ onSendMessage, onUploadClick, isLoading }: ChatInputProps) 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 

@@ -24,12 +24,6 @@ interface DocumentFile {
   progress?: number
 }
 
-interface ChatHistory {
-  id: string
-  title: string
-  date: string
-}
-
 function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -37,8 +31,6 @@ function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
 
   const [documents, setDocuments] = useState<DocumentFile[]>([])
-  const [chatHistory] = useState<ChatHistory[]>([])
-
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatFileSize = (bytes: number): string => {
@@ -46,10 +38,10 @@ function App() {
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return parseFloat((bytes / Math.pow(bytes, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  /* ---------------- FILE UPLOAD (FIXED) ---------------- */
+  /* ---------------- FILE UPLOAD ---------------- */
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
@@ -57,19 +49,20 @@ function App() {
     for (const file of Array.from(files)) {
       const fileId = crypto.randomUUID()
 
-      const newFile: DocumentFile = {
-        id: fileId,
-        name: file.name,
-        size: formatFileSize(file.size),
-        progress: 0,
-        isUploading: true,
-      }
-
-      setDocuments((prev) => [...prev, newFile])
+      setDocuments((prev) => [
+        ...prev,
+        {
+          id: fileId,
+          name: file.name,
+          size: formatFileSize(file.size),
+          progress: 0,
+          isUploading: true,
+        },
+      ])
 
       try {
         const formData = new FormData()
-        formData.append("pdf", file)
+        formData.append("file", file)
 
         const res = await fetch("http://localhost:5000/upload", {
           method: "POST",
@@ -77,9 +70,9 @@ function App() {
         })
 
         const data = await res.json()
+
         console.log("Upload success:", data)
 
-        // mark as uploaded
         setDocuments((prev) =>
           prev.map((f) =>
             f.id === fileId
@@ -87,7 +80,6 @@ function App() {
               : f
           )
         )
-
       } catch (err) {
         console.error("Upload failed:", err)
       }
@@ -108,7 +100,7 @@ function App() {
   const handleNewChat = () => setMessages([])
   const handleUploadClick = () => fileInputRef.current?.click()
 
-  /* ---------------- ASK QUESTION ---------------- */
+  /* ---------------- ASK QUESTION (FIXED) ---------------- */
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -126,7 +118,9 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: content }),
+        body: JSON.stringify({
+          question: content.trim(),
+        }),
       })
 
       const data = await res.json()
@@ -136,11 +130,9 @@ function App() {
         role: 'assistant',
         content: data.answer || 'No response from AI',
         timestamp: new Date(),
-        sources: [],
       }
 
       setMessages((prev) => [...prev, assistantMessage])
-
     } catch (err) {
       console.error('Error calling backend:', err)
     } finally {
@@ -167,7 +159,7 @@ function App() {
           onSelectDocument={handleSelectDocument}
           onRemoveDocument={handleRemoveDocument}
           onUploadClick={handleUploadClick}
-          chatHistory={chatHistory}
+          chatHistory={[]}
           onNewChat={handleNewChat}
         />
       </div>
