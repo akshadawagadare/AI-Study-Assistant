@@ -2,19 +2,16 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const fs = require("fs");
-
-// PDF parser
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
-
-// Claude
 const Anthropic = require("@anthropic-ai/sdk");
+
+/* ------------------ CLAUDE CLIENT ------------------ */
 const client = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
 
-// in-memory storage (prototype only)
-let documents = [];
-module.exports.documents = documents;
+/* ------------------ SAFE IN-MEMORY STORAGE ------------------ */
+const documents = [];
 
 /* ------------------ MULTER ------------------ */
 const storage = multer.diskStorage({
@@ -31,7 +28,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-/* ------------------ PDF EXTRACTION SAFE ------------------ */
+/* ------------------ PDF EXTRACTION ------------------ */
 async function extractText(filePath) {
   try {
     const data = new Uint8Array(fs.readFileSync(filePath));
@@ -49,34 +46,28 @@ async function extractText(filePath) {
 
     return text;
   } catch (err) {
-    console.error("❌ PDF PARSE ERROR:", err);
+    console.error("❌ PDF ERROR:", err.message);
     throw new Error("PDF extraction failed");
   }
 }
 
-/* ------------------ CLEAN TEXT ------------------ */
+/* ------------------ CLEAN CONTEXT ------------------ */
 function buildContext(text) {
   if (!text) return "";
   return text.replace(/\s+/g, " ").trim().slice(0, 12000);
 }
 
-/* ------------------ UPLOAD ------------------ */
+/* ------------------ UPLOAD ROUTE ------------------ */
 router.post("/", upload.single("file"), async (req, res) => {
   try {
-    console.log("📥 UPLOAD HIT");
-
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    console.log("📄 FILE:", req.file.filename);
-
     const text = await extractText(req.file.path);
 
     if (!text || text.trim().length === 0) {
-      return res.status(400).json({
-        error: "Could not extract text from PDF",
-      });
+      return res.status(400).json({ error: "Could not extract text" });
     }
 
     documents.push({
@@ -85,67 +76,58 @@ router.post("/", upload.single("file"), async (req, res) => {
       createdAt: new Date(),
     });
 
-    console.log("✅ UPLOAD SUCCESS");
-    console.log("📊 DOC COUNT:", documents.length);
-
     return res.json({
-      message: "PDF uploaded successfully 🚀",
+      message: "Upload success 🚀",
       preview: text.substring(0, 300),
     });
+
   } catch (err) {
-    console.error("❌ UPLOAD ERROR FULL:", err);
+    console.error("UPLOAD ERROR:", err.message);
+
     return res.status(500).json({
       error: "Upload failed",
       details: err.message,
     });
   }
 });
-console.log("🔥 ASK ROUTE TRIGGERED");
 
-/* ------------------ ASK (FULL DEBUG VERSION) ------------------ */
+/* ------------------ ASK ROUTE (FIXED + SAFE) ------------------ */
 router.post("/ask", async (req, res) => {
   try {
-    console.log("🔥 ASK ROUTE TRIGGERED FULL");
-    console.log("BODY RAW:", req.body);
-    console.log("BODY TYPE:", typeof req.body);
+    console.log("🔥 ASK HIT");
+    console.log("BODY:", req.body);
 
     const question = req.body?.question;
-
-    console.log("QUESTION:", question);
 
     if (!question) {
       return res.status(400).json({ error: "Question is required" });
     }
 
     if (!documents.length) {
-      return res.status(400).json({ error: "No PDF uploaded yet" });
+      return res.status(400).json({ error: "No document uploaded yet" });
     }
 
-    const doc = documents.at(-1);
+    const doc = documents[documents.length - 1];
 
     if (!doc?.text) {
-      return res.status(400).json({
-        error: "PDF text missing or corrupted",
-      });
+      return res.status(400).json({ error: "Document missing text" });
     }
 
     const context = buildContext(doc.text);
 
-    console.log("📄 CONTEXT SIZE:", context.length);
-
-    // 🔥 FINAL SAFETY CHECK
+    // 🔥 CHECK API KEY
     if (!process.env.CLAUDE_API_KEY) {
       return res.status(500).json({
-        error: "CLAUDE API KEY missing in .env",
+        error: "CLAUDE_API_KEY missing in environment variables",
       });
     }
 
     const prompt = `
-STRICT PDF QA SYSTEM:
+You are a strict AI assistant.
 
 RULES:
-- ONLY use PDF content
-- If answer not in PDF: say "Not found in PDF"
+- Answer ONLY from the PDF content
+- If not found: say "Not found in PDF"
 
 PDF:
 """
@@ -158,33 +140,43 @@ ${question}
 ANSWER:
 `;
 
-    const response = await client.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 800,
-      temperature: 0,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+    let answer = "";
 
-    const answer = response.content?.[0]?.text || "No response";
+    try {
+      const response = await client.messages.create({
+        model: "claude-3-haiku-20240307",
+        max_tokens: 800,
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      answer = response.content?.[0]?.text;
+
+    } catch (apiError) {
+      console.error("CLAUDE ERROR:", apiError.message);
+
+      return res.status(500).json({
+        error: "Claude API failed",
+        details: apiError.message,
+      });
+    }
 
     return res.json({
       question,
-      answer,
-      contextPreview: context.substring(0, 300),
+      answer: answer || "No response from AI",
+      contextPreview: context.substring(0, 200),
     });
 
   } catch (err) {
-    console.error("🔥 CLAUDE FULL ERROR:", err);
-    console.error("🔥 MESSAGE:", err.message);
-    console.error("🔥 STACK:", err.stack);
+    console.error("ASK ROUTE ERROR:", err.message);
 
     return res.status(500).json({
-      error: "AI failed",
+      error: "Internal server error",
       details: err.message,
     });
   }
