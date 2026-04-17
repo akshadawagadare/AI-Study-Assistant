@@ -31,6 +31,8 @@ function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
 
   const [documents, setDocuments] = useState<DocumentFile[]>([])
+  const [apiKey, setApiKey] = useState('') // ✅ FIX ADDED HERE
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatFileSize = (bytes: number): string => {
@@ -100,7 +102,7 @@ function App() {
   const handleNewChat = () => setMessages([])
   const handleUploadClick = () => fileInputRef.current?.click()
 
-  /* ---------------- ASK QUESTION (FIXED) ---------------- */
+  /* ---------------- ASK QUESTION ---------------- */
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -161,6 +163,8 @@ function App() {
           onUploadClick={handleUploadClick}
           chatHistory={[]}
           onNewChat={handleNewChat}
+          apiKey={apiKey}          // ✅ FIX
+          setApiKey={setApiKey}    // ✅ FIX
         />
       </div>
 
