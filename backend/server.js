@@ -7,10 +7,14 @@ const app = express();
 const chatRoute = require("./routes/chat");
 const uploadRoute = require("./routes/upload");
 
-// ✅ Middlewares
-app.use(cors());
+// ✅ CORS (allow only your frontend)
+app.use(cors({
+  origin: "https://ai-study-assistant-theta-one.vercel.app",
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 
-// 🔥 IMPORTANT FIX (add both parsers)
+// ✅ Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -23,7 +27,7 @@ app.get("/", (req, res) => {
 app.use("/chat", chatRoute);
 app.use("/upload", uploadRoute);
 
-// ❌ Optional: global error handler (VERY USEFUL)
+// ✅ Global error handler
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
 
@@ -33,7 +37,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ Start server
-app.listen(5000, () => {
-  console.log("Server running on http://localhost:5000");
+// ✅ PORT fix for Render
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
