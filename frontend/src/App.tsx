@@ -26,7 +26,7 @@ interface DocumentFile {
 
 function App() {
 
-  const BACKEND_URL =import.meta.env.VITE_BACKEND_URL
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -34,9 +34,7 @@ function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [documents, setDocuments] = useState<DocumentFile[]>([])
   const [apiKey, setApiKey] = useState('')
-
-  // ✅ FIX 1: Store extracted PDF text here
-  const [pdfContext, setPdfContext] = useState('')
+  const [fileId, setFileId] = useState<string | null>(null) // stores backend fileId
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -54,12 +52,12 @@ function App() {
     if (!files) return
 
     for (const file of Array.from(files)) {
-      const fileId = crypto.randomUUID()
+      const localId = crypto.randomUUID()
 
       setDocuments((prev) => [
         ...prev,
         {
-          id: fileId,
+          id: localId,
           name: file.name,
           size: formatFileSize(file.size),
           progress: 0,
@@ -79,14 +77,14 @@ function App() {
         const data = await res.json()
         console.log("Upload success:", data)
 
-        // ✅ FIX 2: Save extracted text from the upload response
-        if (data.text) {
-          setPdfContext(data.text)
+        // Save the fileId returned by backend
+        if (data.fileId) {
+          setFileId(data.fileId)
         }
 
         setDocuments((prev) =>
           prev.map((f) =>
-            f.id === fileId
+            f.id === localId
               ? { ...f, progress: 100, isUploading: false }
               : f
           )
@@ -96,7 +94,7 @@ function App() {
 
         setDocuments((prev) =>
           prev.map((f) =>
-            f.id === fileId
+            f.id === localId
               ? { ...f, isUploading: false }
               : f
           )
@@ -115,8 +113,7 @@ function App() {
     setDocuments((prev) => prev.filter((doc) => doc.id !== id))
     if (selectedDocumentId === id) {
       setSelectedDocumentId(null)
-      // ✅ Clear context when document is removed
-      setPdfContext('')
+      setFileId(null) // clear fileId when document is removed
     }
   }
 
@@ -145,7 +142,7 @@ function App() {
         },
         body: JSON.stringify({
           question: content.trim(),
-          context: pdfContext, // ✅ FIX 3: Send extracted PDF text as context
+          fileId, // send backend fileId
         }),
       })
 
@@ -154,7 +151,7 @@ function App() {
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.answer || "No response from AI",
+        content: data.answer || data.error || "No response from AI",
         timestamp: new Date(),
       }
 
@@ -220,7 +217,7 @@ function App() {
         onSendMessage={handleSendMessage}
         onUploadClick={handleUploadClick}
         isLoading={isLoading}
-        hasPdf={!!pdfContext} // ✅ FIX 4: Tell ChatWindow whether a PDF is loaded
+        hasPdf={!!fileId}
         selectedDocumentName={
           documents.find((d) => d.id === selectedDocumentId)?.name
         }
