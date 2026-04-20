@@ -25,13 +25,18 @@ interface DocumentFile {
 }
 
 function App() {
+
+  const BACKEND_URL = "https://ai-study-assistant-s5af.onrender.com"
+
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
-
   const [documents, setDocuments] = useState<DocumentFile[]>([])
-  const [apiKey, setApiKey] = useState('') // ✅ FIX ADDED HERE
+  const [apiKey, setApiKey] = useState('')
+
+  // ✅ FIX 1: Store extracted PDF text here
+  const [pdfContext, setPdfContext] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -40,7 +45,7 @@ function App() {
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(bytes, i)).toFixed(2)) + ' ' + sizes[i]
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   /* ---------------- FILE UPLOAD ---------------- */
@@ -66,14 +71,18 @@ function App() {
         const formData = new FormData()
         formData.append("file", file)
 
-        const res = await fetch("http://localhost:5000/upload", {
+        const res = await fetch(`${BACKEND_URL}/upload`, {
           method: "POST",
           body: formData,
         })
 
         const data = await res.json()
-
         console.log("Upload success:", data)
+
+        // ✅ FIX 2: Save extracted text from the upload response
+        if (data.text) {
+          setPdfContext(data.text)
+        }
 
         setDocuments((prev) =>
           prev.map((f) =>
@@ -84,6 +93,14 @@ function App() {
         )
       } catch (err) {
         console.error("Upload failed:", err)
+
+        setDocuments((prev) =>
+          prev.map((f) =>
+            f.id === fileId
+              ? { ...f, isUploading: false }
+              : f
+          )
+        )
       }
     }
 
@@ -96,14 +113,20 @@ function App() {
 
   const handleRemoveDocument = (id: string) => {
     setDocuments((prev) => prev.filter((doc) => doc.id !== id))
-    if (selectedDocumentId === id) setSelectedDocumentId(null)
+    if (selectedDocumentId === id) {
+      setSelectedDocumentId(null)
+      // ✅ Clear context when document is removed
+      setPdfContext('')
+    }
   }
 
   const handleNewChat = () => setMessages([])
+
   const handleUploadClick = () => fileInputRef.current?.click()
 
-  /* ---------------- ASK QUESTION ---------------- */
+  /* ---------------- CHAT API CALL ---------------- */
   const handleSendMessage = async (content: string) => {
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -115,13 +138,14 @@ function App() {
     setIsLoading(true)
 
     try {
-      const res = await fetch('http://localhost:5000/upload/ask', {
-        method: 'POST',
+      const res = await fetch(`${BACKEND_URL}/upload/ask`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           question: content.trim(),
+          context: pdfContext, // ✅ FIX 3: Send extracted PDF text as context
         }),
       })
 
@@ -130,13 +154,25 @@ function App() {
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.answer || 'No response from AI',
+        content: data.answer || "No response from AI",
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, assistantMessage])
+
     } catch (err) {
-      console.error('Error calling backend:', err)
+      console.error("Backend error:", err)
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: "❌ Server error. Please try again.",
+          timestamp: new Date(),
+        },
+      ])
+
     } finally {
       setIsLoading(false)
     }
@@ -163,8 +199,8 @@ function App() {
           onUploadClick={handleUploadClick}
           chatHistory={[]}
           onNewChat={handleNewChat}
-          apiKey={apiKey}          // ✅ FIX
-          setApiKey={setApiKey}    // ✅ FIX
+          apiKey={apiKey}
+          setApiKey={setApiKey}
         />
       </div>
 
@@ -184,6 +220,7 @@ function App() {
         onSendMessage={handleSendMessage}
         onUploadClick={handleUploadClick}
         isLoading={isLoading}
+        hasPdf={!!pdfContext} // ✅ FIX 4: Tell ChatWindow whether a PDF is loaded
         selectedDocumentName={
           documents.find((d) => d.id === selectedDocumentId)?.name
         }

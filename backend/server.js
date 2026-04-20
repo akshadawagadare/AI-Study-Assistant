@@ -4,12 +4,10 @@ const cors = require("cors");
 const app = express();
 
 // =====================
-// ✅ CORS FIX (IMPORTANT)
+// ✅ CORS FIX
 // =====================
 const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://ai-study-assistant-theta-one.vercel.app"
+  "https://ai-study-assistant-theta-one.vercel.app", // production frontend
 ];
 
 app.use(cors({
@@ -17,12 +15,18 @@ app.use(cors({
     // allow tools like Postman (no origin)
     if (!origin) return callback(null, true);
 
+    // ✅ Allow all localhost ports (dev)
+    if (origin.startsWith("http://localhost")) {
+      return callback(null, true);
+    }
+
+    // ✅ Allow production origins
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
-    } else {
-      console.log("❌ Blocked by CORS:", origin);
-      return callback(new Error("Not allowed by CORS"));
     }
+
+    console.log("❌ Blocked by CORS:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true

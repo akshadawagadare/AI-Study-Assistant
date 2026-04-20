@@ -10,12 +10,13 @@ const client = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
 
-/* ------------------ SAFE IN-MEMORY STORAGE ------------------ */
-const documents = [];
-
-/* ------------------ MULTER ------------------ */
+/* ------------------ MULTER SETUP ------------------ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // ensure uploads folder exists
+    if (!fs.existsSync("uploads")) {
+      fs.mkdirSync("uploads");
+    }
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
@@ -25,10 +26,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
-/* ------------------ PDF EXTRACTION ------------------ */
+/* ------------------ PDF TEXT EXTRACTION ------------------ */
 async function extractText(filePath) {
   try {
     const data = new Uint8Array(fs.readFileSync(filePath));
@@ -41,6 +42,7 @@ async function extractText(filePath) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
+
       text += content.items.map((item) => item.str).join(" ") + "\n";
     }
 
@@ -70,15 +72,10 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "Could not extract text" });
     }
 
-    documents.push({
-      id: req.file.filename,
-      text,
-      createdAt: new Date(),
-    });
-
     return res.json({
       message: "Upload success 🚀",
-      preview: text.substring(0, 300),
+      fileId: req.file.filename,
+      text, // ✅ SEND TEXT TO FRONTEND
     });
 
   } catch (err) {
@@ -91,47 +88,39 @@ router.post("/", upload.single("file"), async (req, res) => {
   }
 });
 
-/* ------------------ ASK ROUTE (FIXED + SAFE) ------------------ */
+/* ------------------ ASK ROUTE (NO MEMORY VERSION) ------------------ */
 router.post("/ask", async (req, res) => {
   try {
-    console.log("🔥 ASK HIT");
-    console.log("BODY:", req.body);
+    console.log("🔥 ASK ROUTE HIT");
 
-    const question = req.body?.question;
+    const { question, context } = req.body;
 
     if (!question) {
       return res.status(400).json({ error: "Question is required" });
     }
 
-    if (!documents.length) {
-      return res.status(400).json({ error: "No document uploaded yet" });
+    if (!context) {
+      return res.status(400).json({ error: "Context is required" });
     }
 
-    const doc = documents[documents.length - 1];
-
-    if (!doc?.text) {
-      return res.status(400).json({ error: "Document missing text" });
-    }
-
-    const context = buildContext(doc.text);
-
-    // 🔥 CHECK API KEY
     if (!process.env.CLAUDE_API_KEY) {
       return res.status(500).json({
         error: "CLAUDE_API_KEY missing in environment variables",
       });
     }
 
+    const cleanContext = buildContext(context);
+
     const prompt = `
 You are a strict AI assistant.
 
 RULES:
 - Answer ONLY from the PDF content
-- If not found: say "Not found in PDF"
+- If answer is not in PDF, say "Not found in PDF"
 
-PDF:
+PDF CONTENT:
 """
-${context}
+${cleanContext}
 """
 
 QUESTION:
@@ -140,40 +129,27 @@ ${question}
 ANSWER:
 `;
 
-    let answer = "";
+    const response = await client.messages.create({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 800,
+      temperature: 0,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
 
-    try {
-      const response = await client.messages.create({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 800,
-        temperature: 0,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
-
-      answer = response.content?.[0]?.text;
-
-    } catch (apiError) {
-      console.error("CLAUDE ERROR:", apiError.message);
-
-      return res.status(500).json({
-        error: "Claude API failed",
-        details: apiError.message,
-      });
-    }
+    const answer = response.content?.[0]?.text;
 
     return res.json({
       question,
       answer: answer || "No response from AI",
-      contextPreview: context.substring(0, 200),
     });
 
   } catch (err) {
-    console.error("ASK ROUTE ERROR:", err.message);
+    console.error("ASK ERROR:", err.message);
 
     return res.status(500).json({
       error: "Internal server error",
