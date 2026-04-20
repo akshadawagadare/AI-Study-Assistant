@@ -8,6 +8,9 @@ const { GoogleGenAI } = require("@google/genai");
 /* ------------------ GEMINI CLIENT ------------------ */
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+/* ------------------ SIMPLE MEMORY STORE (IMPORTANT FIX) ------------------ */
+const fileStore = {}; // fileId -> extracted text
+
 /* ------------------ MULTER SETUP ------------------ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -26,32 +29,26 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-/* ------------------ PDF TEXT EXTRACTION ------------------ */
+/* ------------------ PDF EXTRACTION ------------------ */
 async function extractText(filePath) {
-  try {
-    const data = new Uint8Array(fs.readFileSync(filePath));
+  const data = new Uint8Array(fs.readFileSync(filePath));
 
-    const loadingTask = pdfjsLib.getDocument({ data });
-    const pdf = await loadingTask.promise;
+  const loadingTask = pdfjsLib.getDocument({ data });
+  const pdf = await loadingTask.promise;
 
-    let text = "";
+  let text = "";
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item) => item.str).join(" ") + "\n";
-    }
-
-    return text;
-  } catch (err) {
-    console.error("❌ PDF ERROR:", err.message);
-    throw new Error("PDF extraction failed");
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map((item) => item.str).join(" ") + "\n";
   }
+
+  return text;
 }
 
 /* ------------------ CLEAN CONTEXT ------------------ */
 function buildContext(text) {
-  if (!text) return "";
   return text.replace(/\s+/g, " ").trim().slice(0, 12000);
 }
 
@@ -68,10 +65,14 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "Could not extract text" });
     }
 
+    const fileId = req.file.filename;
+
+    // STORE TEXT (IMPORTANT FIX)
+    fileStore[fileId] = text;
+
     return res.json({
       message: "Upload success 🚀",
-      fileId: req.file.filename,
-      text,
+      fileId,
     });
 
   } catch (err) {
@@ -88,23 +89,17 @@ router.post("/ask", async (req, res) => {
   try {
     console.log("🔥 ASK ROUTE HIT");
 
-    const { question, context } = req.body;
+    const { question, fileId } = req.body;
 
     if (!question) {
       return res.status(400).json({ error: "Question is required" });
     }
 
-    if (!context) {
-      return res.status(400).json({ error: "Context is required" });
+    if (!fileId || !fileStore[fileId]) {
+      return res.status(400).json({ error: "Invalid fileId or file not found" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY missing in environment variables",
-      });
-    }
-
-    const cleanContext = buildContext(context);
+    const context = buildContext(fileStore[fileId]);
 
     const prompt = `
 You are a strict AI assistant.
@@ -115,7 +110,7 @@ RULES:
 
 PDF CONTENT:
 """
-${cleanContext}
+${context}
 """
 
 QUESTION:
@@ -125,11 +120,12 @@ ANSWER:
 `;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
     });
 
-    const answer = result.text;
+    const answer =
+      result.candidates?.[0]?.content?.parts?.[0]?.text;
 
     return res.json({
       question,
