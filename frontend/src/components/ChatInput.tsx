@@ -1,8 +1,6 @@
 import { useState, useRef } from 'react'
 import { Send, Paperclip } from 'lucide-react'
 
-const API = import.meta.env.VITE_BACKEND_URL;
-
 interface ChatInputProps {
   onSendMessage: (content: string, response?: string) => void
   onUploadClick: () => void
