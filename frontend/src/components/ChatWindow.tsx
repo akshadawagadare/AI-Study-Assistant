@@ -22,9 +22,10 @@ interface ChatWindowProps {
   onUploadClick: () => void
   isLoading?: boolean
   selectedDocumentName?: string | null
+  hasPdf?: boolean // ✅ ADDED
 }
 
-function ChatWindow({ messages, onSendMessage, onUploadClick, isLoading, selectedDocumentName }: ChatWindowProps) {
+function ChatWindow({ messages, onSendMessage, onUploadClick, isLoading, selectedDocumentName, hasPdf }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -131,10 +132,11 @@ function ChatWindow({ messages, onSendMessage, onUploadClick, isLoading, selecte
       </div>
 
       {/* Input Area */}
-      <ChatInput 
-        onSendMessage={onSendMessage} 
+      <ChatInput
+        onSendMessage={onSendMessage}
         onUploadClick={onUploadClick}
-        isLoading={isLoading} 
+        isLoading={isLoading}
+        hasPdf={hasPdf} // ✅ ADDED: pass hasPdf down to ChatInput
       />
     </div>
   )
