@@ -3,11 +3,11 @@ const router = express.Router();
 const multer = require("multer");
 const fs = require("fs");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 /* ------------------ GEMINI CLIENT ------------------ */
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
 
 /* ------------------ MULTER SETUP ------------------ */
 const storage = multer.diskStorage({
