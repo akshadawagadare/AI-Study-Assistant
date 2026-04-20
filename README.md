@@ -1,208 +1,168 @@
-# 📚 AI Study Assistant  
+# 📚 AI Study Assistant
 
-An intelligent AI-powered learning assistant that allows users to interact with PDF documents using natural language queries.
-
----
-
-## 🚀 Overview  
-
-Students often struggle to quickly extract useful insights from lengthy PDFs.  
-This project solves that problem by enabling **AI-driven question answering over documents**, delivering instant, context-aware responses through an interactive chat interface.
+Upload any PDF and ask questions about it in plain English — instant AI-powered answers without reading the whole document.
 
 ---
 
-## 🌐 Live Demo  
+## 🌐 Live Demo
 
-👉 Coming soon (deployment in progress)
+ 👉 [Click here to try it live](https://ai-study-assistant-theta-one.vercel.app)
 
 ---
 
-## 📸 Screenshots  
+## 📸 Screenshots
+
 ![Chat Interface](screenshots/chat.png)
 ![PDF Upload](screenshots/upload.png)
 
 ---
 
-## ✨ Features  
+## ✨ Features
 
-- 📄 Upload and process PDF documents  
-- 🤖 Ask questions based on document content  
-- 🧠 Context-aware AI responses  
-- 💬 Chat-style user interface  
-- ⚡ Fast and responsive system  
-
----
-
-## 🚀 Highlights  
-
-- Efficient PDF text extraction and processing  
-- Context-aware AI responses using prompt engineering  
-- Clean and modular full-stack architecture  
-- Real-time frontend-backend interaction  
-- Designed for scalability and future AI enhancements  
+- 📄 Upload and process PDF documents
+- 🤖 Ask questions based on document content
+- 🧠 Context-aware AI responses via Claude API
+- 💬 Chat-style user interface
+- ⚡ Real-time frontend-backend communication
 
 ---
 
-## 🛠 Tech Stack  
+## 🛠 Tech Stack
 
-### Frontend  
-- React (Vite)  
-- TypeScript  
-- Tailwind CSS  
-
-### Backend  
-- Node.js  
-- Express.js  
-- Multer (file uploads)  
-- pdfjs-dist (PDF parsing)  
-
-### AI Integration  
-- Anthropic Claude API  
+| Layer | Tech |
+|-------|------|
+| Frontend | React (Vite), TypeScript, Tailwind CSS |
+| Backend | Node.js, Express.js, Multer, pdfjs-dist |
+| AI | Anthropic Claude API |
 
 ---
 
-## 📂 Project Structure  
+## 📂 Project Structure
 
 ```
 AI-Study-Assistant/
-│
 ├── backend/
 │   ├── routes/
+│   │   └── upload.js
 │   ├── uploads/
-│   ├── server.js
-│
+│   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   ├── App.tsx
-│
+│   │   │   ├── ChatBox.tsx
+│   │   │   └── FileUpload.tsx
+│   │   └── App.tsx
 └── README.md
 ```
 
 ---
 
-## ⚙️ Setup Instructions  
+## ⚙️ Setup Instructions
 
-### 1. Clone Repository  
+### 1. Clone Repository
 
-```
+```bash
 git clone https://github.com/akshadawagadare/ai-study-assistant.git
 cd ai-study-assistant
 ```
 
----
+### 2. Backend Setup
 
-### 2. Backend Setup  
-
-```
+```bash
 cd backend
 npm install
 ```
 
-Create a `.env` file:  
+Create a `.env` file:
 
-```
+```env
 CLAUDE_API_KEY=your_api_key_here
+PORT=5000
 ```
 
-Run the server:  
+Start the server:
 
-```
+```bash
 node server.js
 ```
 
-Backend runs on:  
-http://localhost:5000  
+Backend runs on: `http://localhost:5000`
 
----
+### 3. Frontend Setup
 
-### 3. Frontend Setup  
-
-```
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend runs on:  
-http://localhost:5173  
+Frontend runs on: `http://localhost:5173`
 
 ---
 
-## 🔌 API Endpoints  
+## 🔌 API Endpoints
 
-### Upload PDF  
+### Upload PDF
 ```
 POST /upload
+Content-Type: multipart/form-data
 ```
 
-### Ask Question  
+### Ask a Question
 ```
 POST /upload/ask
+Content-Type: application/json
 ```
 
-Request Body:
+Request:
 ```json
 {
-  "question": "Your question here"
+  "question": "What is the main topic of this document?"
+}
+```
+
+Response:
+```json
+{
+  "answer": "The document covers..."
 }
 ```
 
 ---
 
-## 🧠 How It Works  
+## 🧠 How It Works
 
-1. User uploads a PDF  
-2. Backend extracts text using pdfjs  
-3. Text is processed and passed as context  
-4. User submits a query  
-5. AI generates a context-aware response  
-6. Answer is displayed in chat interface  
-
----
-
-## 🧩 AI Implementation Details  
-
-- Uses prompt engineering to inject document context into AI queries  
-- Ensures responses are relevant to uploaded content  
-- Designed to be extendable to **RAG (Retrieval-Augmented Generation)**  
+1. User uploads a PDF
+2. Backend extracts text using `pdfjs-dist`
+3. Extracted text is injected as context into the prompt
+4. Claude API generates a context-aware response
+5. Answer is displayed in the chat interface
 
 ---
 
-## 🎯 Key Learnings  
+## 🚧 Future Improvements
 
-- Handling file uploads in Node.js  
-- Parsing and processing PDF data  
-- Integrating AI APIs into real-world applications  
-- Building scalable full-stack systems  
-- Managing frontend-backend communication  
-
----
-
-## 🚧 Future Improvements  
-
-- 🔍 Implement RAG with vector database (Pinecone / FAISS)  
-- 📚 Multi-document support  
-- 💾 Chat history with database (MongoDB)  
-- 🔐 User authentication system  
-- ⚡ Streaming AI responses  
+- 🔍 Implement RAG with vector database (Pinecone / FAISS)
+- 📚 Multi-document support
+- 💾 Chat history with MongoDB
+- 🔐 User authentication
+- ⚡ Streaming AI responses
 
 ---
 
-## ⚠️ Notes  
+## ⚠️ Notes
 
-- Ensure backend is running before starting frontend  
-- Upload a PDF before asking questions  
-- Never expose API keys in frontend  
-
----
-
-## 👨‍💻 Author  
-
-**Akshada Wagadare**  
+- Start backend before frontend
+- Upload a PDF before asking questions
+- Never expose API keys in frontend code
 
 ---
 
-## ⭐ Support  
+## 👩‍💻 Author
 
-If you found this project useful, consider giving it a ⭐ on GitHub!
+**Akshada Wagadare**
+[GitHub](https://github.com/akshadawagadare) • [LinkedIn](https://www.linkedin.com/in/akshadawagadare/)
+
+---
+
+⭐ If this helped you, consider starring the repo!
