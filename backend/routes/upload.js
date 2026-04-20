@@ -3,17 +3,15 @@ const router = express.Router();
 const multer = require("multer");
 const fs = require("fs");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
-const Anthropic = require("@anthropic-ai/sdk");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-/* ------------------ CLAUDE CLIENT ------------------ */
-const client = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
+/* ------------------ GEMINI CLIENT ------------------ */
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 /* ------------------ MULTER SETUP ------------------ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // ensure uploads folder exists
     if (!fs.existsSync("uploads")) {
       fs.mkdirSync("uploads");
     }
@@ -42,7 +40,6 @@ async function extractText(filePath) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-
       text += content.items.map((item) => item.str).join(" ") + "\n";
     }
 
@@ -75,12 +72,11 @@ router.post("/", upload.single("file"), async (req, res) => {
     return res.json({
       message: "Upload success 🚀",
       fileId: req.file.filename,
-      text, // ✅ SEND TEXT TO FRONTEND
+      text,
     });
 
   } catch (err) {
     console.error("UPLOAD ERROR:", err.message);
-
     return res.status(500).json({
       error: "Upload failed",
       details: err.message,
@@ -88,7 +84,7 @@ router.post("/", upload.single("file"), async (req, res) => {
   }
 });
 
-/* ------------------ ASK ROUTE (NO MEMORY VERSION) ------------------ */
+/* ------------------ ASK ROUTE ------------------ */
 router.post("/ask", async (req, res) => {
   try {
     console.log("🔥 ASK ROUTE HIT");
@@ -103,9 +99,9 @@ router.post("/ask", async (req, res) => {
       return res.status(400).json({ error: "Context is required" });
     }
 
-    if (!process.env.CLAUDE_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({
-        error: "CLAUDE_API_KEY missing in environment variables",
+        error: "GEMINI_API_KEY missing in environment variables",
       });
     }
 
@@ -129,19 +125,8 @@ ${question}
 ANSWER:
 `;
 
-    const response = await client.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 800,
-      temperature: 0,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const answer = response.content?.[0]?.text;
+    const result = await model.generateContent(prompt);
+    const answer = result.response.text();
 
     return res.json({
       question,
@@ -150,7 +135,6 @@ ANSWER:
 
   } catch (err) {
     console.error("ASK ERROR:", err.message);
-
     return res.status(500).json({
       error: "Internal server error",
       details: err.message,

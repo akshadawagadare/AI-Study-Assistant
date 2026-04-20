@@ -26,7 +26,7 @@ interface DocumentFile {
 
 function App() {
 
-  const BACKEND_URL = "https://ai-study-assistant-s5af.onrender.com"
+  const BACKEND_URL =import.meta.env.VITE_BACKEND_URL
 
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
