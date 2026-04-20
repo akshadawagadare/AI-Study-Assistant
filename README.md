@@ -6,7 +6,7 @@ Upload any PDF and ask questions about it in plain English — instant AI-powere
 
 ## 🌐 Live Demo
 
- 👉 [Click here to try it live](https://ai-study-assistant-theta-one.vercel.app)
+👉 [Click here to try it live](https://ai-study-assistant-theta-one.vercel.app)
 
 ---
 
@@ -21,7 +21,7 @@ Upload any PDF and ask questions about it in plain English — instant AI-powere
 
 - 📄 Upload and process PDF documents
 - 🤖 Ask questions based on document content
-- 🧠 Context-aware AI responses via Claude API
+- 🧠 Context-aware AI responses via Google Gemini API
 - 💬 Chat-style user interface
 - ⚡ Real-time frontend-backend communication
 
@@ -33,28 +33,29 @@ Upload any PDF and ask questions about it in plain English — instant AI-powere
 |-------|------|
 | Frontend | React (Vite), TypeScript, Tailwind CSS |
 | Backend | Node.js, Express.js, Multer, pdfjs-dist |
-| AI | Anthropic Claude API |
+| AI | Google Gemini API (gemini-2.5-flash) |
 
 ---
 
 ## 📂 Project Structure
-
-```
 AI-Study-Assistant/
 ├── backend/
 │   ├── routes/
+│   │   ├── chat.js
 │   │   └── upload.js
 │   ├── uploads/
 │   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ChatBox.tsx
-│   │   │   └── FileUpload.tsx
+│   │   │   ├── ChatWindow.tsx
+│   │   │   ├── ChatInput.tsx
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── MessageBubble.tsx
+│   │   │   ├── FileItem.tsx
+│   │   │   └── DocumentSidebarSection.tsx
 │   │   └── App.tsx
 └── README.md
-```
-
 ---
 
 ## ⚙️ Setup Instructions
@@ -76,7 +77,7 @@ npm install
 Create a `.env` file:
 
 ```env
-CLAUDE_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 PORT=5000
 ```
 
@@ -103,21 +104,24 @@ Frontend runs on: `http://localhost:5173`
 ## 🔌 API Endpoints
 
 ### Upload PDF
-```
 POST /upload
 Content-Type: multipart/form-data
+Response:
+```json
+{
+  "message": "Upload successful",
+  "fileId": "1234567890-filename.pdf"
+}
 ```
 
 ### Ask a Question
-```
 POST /upload/ask
 Content-Type: application/json
-```
-
 Request:
 ```json
 {
-  "question": "What is the main topic of this document?"
+  "question": "What is the main topic of this document?",
+  "fileId": "1234567890-filename.pdf"
 }
 ```
 
@@ -134,9 +138,11 @@ Response:
 
 1. User uploads a PDF
 2. Backend extracts text using `pdfjs-dist`
-3. Extracted text is injected as context into the prompt
-4. Claude API generates a context-aware response
-5. Answer is displayed in the chat interface
+3. Backend stores extracted text and returns a `fileId`
+4. User asks a question with the `fileId`
+5. Extracted text is injected as context into the Gemini prompt
+6. Gemini API generates a context-aware response
+7. Answer is displayed in the chat interface
 
 ---
 
@@ -147,6 +153,7 @@ Response:
 - 💾 Chat history with MongoDB
 - 🔐 User authentication
 - ⚡ Streaming AI responses
+- 🗄️ Persistent storage with MongoDB to survive server restarts
 
 ---
 
@@ -155,6 +162,7 @@ Response:
 - Start backend before frontend
 - Upload a PDF before asking questions
 - Never expose API keys in frontend code
+- Uploaded PDFs expire after 30 minutes on the server
 
 ---
 
