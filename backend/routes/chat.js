@@ -4,8 +4,7 @@ require("dotenv").config();
 
 const { GoogleGenAI } = require("@google/genai");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 router.post("/", async (req, res) => {
   try {
@@ -15,12 +14,17 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const result = await model.generateContent(message);
-    const reply = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: message,
+    });
+
+    const reply = result.text;
 
     res.json({
       reply: reply || "No response from AI",
     });
+
   } catch (error) {
     console.error("❌ Gemini Error:", error);
 

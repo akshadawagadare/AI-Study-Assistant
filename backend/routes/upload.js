@@ -6,8 +6,7 @@ const pdfjsLib = require("pdfjs-dist/legacy/build/pdf");
 const { GoogleGenAI } = require("@google/genai");
 
 /* ------------------ GEMINI CLIENT ------------------ */
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /* ------------------ MULTER SETUP ------------------ */
 const storage = multer.diskStorage({
@@ -24,7 +23,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 /* ------------------ PDF TEXT EXTRACTION ------------------ */
@@ -125,8 +124,12 @@ ${question}
 ANSWER:
 `;
 
-    const result = await model.generateContent(prompt);
-    const answer = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    const answer = result.text;
 
     return res.json({
       question,
