@@ -1,0 +1,15 @@
+version: '3'
+services:
+  backend:
+    image: ai-study-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+  frontend:
+    image: ai-study-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
