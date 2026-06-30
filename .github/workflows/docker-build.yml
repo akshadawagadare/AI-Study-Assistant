@@ -1,0 +1,19 @@
+name: Docker Build CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t ai-study-backend ./backend
+
+      - name: Build frontend image
+        run: docker build -t ai-study-frontend ./frontend
